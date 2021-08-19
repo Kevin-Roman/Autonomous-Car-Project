@@ -1,9 +1,21 @@
-# import the necessary packages
 import time
-from picamera.array import PiRGBArray
-from picamera import PiCamera
-import numpy as np
 import cv2
+import numpy as np
+from numpy.polynomial import Polynomial
+from picamera import PiCamera
+from picamera.array import PiRGBArray
+
+
+def detect_lane(image):
+    mask, edges = get_edges(image)
+    # lines = get_lines(edges)
+    output = cv2.bitwise_and(image, image, mask=edges)
+    output = get_contours(mask, output)
+    image, lines = get_lines(image, edges)
+    track_lines = combined_lines(lines, image)
+    image = show_track_lines(track_lines, image)
+
+    return image, output
 
 
 def get_bottom_half(mask):
@@ -69,52 +81,107 @@ def get_lines_obscolete(image, edges):
     return lines, image
 
 
-def get_lines(edges):
+def get_lines(image, edges):
     lines = cv2.HoughLinesP(edges, 1, np.pi/180, 10, np.array([]),
                             minLineLength=10, maxLineGap=5)
     # print(lines[0])
 
-    # for line in lines:
-    #     x1, y1, x2, y2 = line[0]
-    #     cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        # print(x1, y1, x2, y2)
+        cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-    return lines
+    return image, lines
+
+
+def make_line(line, image):
+    height, width = image.shape[:2]
+    intercept, gradient = line
+    y1 = height
+    y2 = int(height / 2)
+    x1 = int((y1-intercept) / gradient)
+    x2 = int((y2-intercept) / gradient)
+
+    return [(x1, y1, x2, y2)]
 
 
 def combined_lines(lines, image):
-    pass
+    left_lines = []
+    right_lines = []
+
+    height, width = image.shape[:2]
+
+    for line in lines:
+        for x1, y1, x2, y2 in line:
+            if x1 != x2 and y1 != y2:
+                polynomial = list(Polynomial.fit(
+                    (x1, x2), (y1, y2), 1).convert())
+
+                intercept = polynomial[0]
+                gradient = polynomial[1]
+                # print(intercept, gradient)
+
+                if gradient < 0:
+                    if x1 < (width / 2) and x2 < (width / 2):
+                        left_lines.append((intercept, gradient))
+                else:
+                    if x1 > (width / 2) and x2 > (width / 2):
+                        right_lines.append((intercept, gradient))
+
+    left_polynomial = np.average(left_lines, axis=0)
+    right_polynomial = np.average(right_lines, axis=0)
+    # print(left_polynomial)
+
+    track_lines = [make_line(left_polynomial, image),
+                   make_line(right_polynomial, image)]
+
+    # print(left_polynomial, right_polynomial)
+
+    return track_lines
 
 
-camera = PiCamera()
-camera.resolution = (640, 480)
-camera.framerate = 32
-camera.rotation = 180
-rawCapture = PiRGBArray(camera, size=(640, 480))
+def show_track_lines(lines, image):
+    for line in lines:
 
-time.sleep(0.5)
+        for x1, y1, x2, y2 in line:
+            cv2.line(image, (x1, y1), (x2, y2), (0, 0, 255), 5)
+
+    return image
 
 
-for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-
-    image = frame.array
-    mask, edges = get_edges(image)
-
-    #lines = get_lines(edges)
-
-    output = cv2.bitwise_and(image, image, mask=edges)
-
-    output = get_contours(mask, output)
-
-    lines = get_lines(edges)
-
-    combined_lines(lines, image)
-
+def test_image():
+    image = cv2.imread('./image3.jpg')
+    image, output = detect_lane(image)
     cv2.imshow("image", image)
     cv2.imshow("output", output)
 
-    key = cv2.waitKey(1) & 0xFF
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
-    rawCapture.truncate(0)
 
-    if key == ord("q"):
-        break
+def live_video():
+    camera = PiCamera()
+    camera.resolution = (640, 480)
+    camera.framerate = 32
+    camera.rotation = 180
+    rawCapture = PiRGBArray(camera, size=(640, 480))
+
+    time.sleep(0.5)
+
+    for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+
+        image = frame.array
+        image, output = detect_lane(image)
+
+        cv2.imshow("image", image)
+        cv2.imshow("output", output)
+
+        key = cv2.waitKey(1) & 0xFF
+
+        rawCapture.truncate(0)
+
+        if key == ord("q"):
+            break
+
+
+live_video()
