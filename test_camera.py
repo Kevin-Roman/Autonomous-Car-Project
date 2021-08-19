@@ -6,7 +6,7 @@ from picamera import PiCamera
 from picamera.array import PiRGBArray
 
 
-def detect_lane(image):
+def detect_track(image):
     mask, edges = get_edges(image)
     # lines = get_lines(edges)
     output = cv2.bitwise_and(image, image, mask=edges)
@@ -14,6 +14,9 @@ def detect_lane(image):
     image, lines = get_lines(image, edges)
     track_lines = combined_lines(lines, image)
     image = show_track_lines(track_lines, image)
+    main_line, angle = steering_line(track_lines, image)
+    image = show_track_lines([[main_line]], image)
+    print(angle)
 
     return image, output
 
@@ -109,7 +112,7 @@ def combined_lines(lines, image):
     left_lines = []
     right_lines = []
 
-    height, width = image.shape[:2]
+    _, width = image.shape[:2]
 
     for line in lines:
         for x1, y1, x2, y2 in line:
@@ -149,9 +152,33 @@ def show_track_lines(lines, image):
     return image
 
 
+def steering_line(lines, image):
+    height, width = image.shape[:2]
+
+    x2_left = lines[0][0][2]
+    x2_right = lines[1][0][2]
+
+    x1 = int(width/2)
+    x2 = int((x2_left + x2_right) / 2)
+    y1 = height
+    y2 = int(height / 2)
+
+    # print(lines)
+    bottom_center = int(width/2)
+    x = x2 - bottom_center
+    y = int(height / 2)
+    # print(x, y)
+    theta = int((np.pi/2 - np.arctan(y/x)) * (180/np.pi))
+    angle = theta + 90
+
+    main_line = (x1, y1, x2, y2)
+
+    return main_line, angle
+
+
 def test_image():
     image = cv2.imread('./image3.jpg')
-    image, output = detect_lane(image)
+    image, output = detect_track(image)
     cv2.imshow("image", image)
     cv2.imshow("output", output)
 
@@ -171,7 +198,7 @@ def live_video():
     for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
 
         image = frame.array
-        image, output = detect_lane(image)
+        image, output = detect_track(image)
 
         cv2.imshow("image", image)
         cv2.imshow("output", output)
