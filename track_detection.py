@@ -1,4 +1,6 @@
 import time
+from threading import Thread
+
 import cv2
 import numpy as np
 from numpy.polynomial import Polynomial
@@ -12,7 +14,7 @@ class Track_Detection():
 
     def drive_track(self, image):
         image, output, angle = detect_track(image, self.current_angle)
-        print(angle)
+        # print(angle)
 
         # check for 135 and 45
         if angle > 135:
@@ -22,14 +24,14 @@ class Track_Detection():
         else:
             self.current_angle = angle
 
-        return image, output
+        return image, output, angle
 
 
 def detect_track(image, current_angle):
-    mask, edges = get_edges(image)
+    _, edges = get_edges(image)
     # lines = get_lines_old(edges)
     output = cv2.bitwise_and(image, image, mask=edges)
-    output = get_contours(mask, output)
+    # output = get_contours(mask, output)
     image, lines = get_lines(image, edges)
     track_lines = combined_lines(lines, image)
     image = show_track_lines(track_lines, image)
