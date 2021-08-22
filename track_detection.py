@@ -1,11 +1,9 @@
 import time
-from threading import Thread
 
 import cv2
 import numpy as np
-from numpy.polynomial import Polynomial
-from picamera import PiCamera
-from picamera.array import PiRGBArray
+from imutils.video.pivideostream import PiVideoStream
+
 
 
 class Track_Detection():
@@ -34,7 +32,10 @@ def detect_track(image, current_angle):
     # output = get_contours(mask, output)
     image, lines = get_lines(image, edges)
     track_lines = combined_lines(lines, image)
-    image = show_track_lines(track_lines, image)
+
+    if len(track_lines) > 0:
+        image = show_track_lines(track_lines, image)
+
     main_line, next_angle = steering_line(track_lines, image)
     image = show_track_lines([[main_line]], image)
     # print(current_angle, next_angle)
@@ -129,11 +130,13 @@ def combined_lines(lines, image):
     for line in lines:
         for x1, y1, x2, y2 in line:
             if x1 != x2 and y1 != y2:
-                polynomial = list(Polynomial.fit(
-                    (x1, x2), (y1, y2), 1).convert())
+                # polynomial = list(Polynomial.fit(
+                #     (x1, x2), (y1, y2), 1).convert())
 
-                intercept = polynomial[0]
-                gradient = polynomial[1]
+                polynomial = np.polyfit((x1, x2), (y1, y2), 1)
+
+                intercept = polynomial[1]
+                gradient = polynomial[0]
                 # print(intercept, gradient)
 
                 if gradient < 0:
@@ -143,12 +146,19 @@ def combined_lines(lines, image):
                     if x1 > (width / 2) and x2 > (width / 2):
                         right_lines.append((intercept, gradient))
 
-    left_polynomial = np.average(left_lines, axis=0)
-    right_polynomial = np.average(right_lines, axis=0)
-    # print(left_polynomial)
+    track_lines = []
 
-    track_lines = [make_line(left_polynomial, image),
-                   make_line(right_polynomial, image)]
+    if len(left_lines) > 0:
+        left_polynomial = np.average(left_lines, axis=0)
+        left_line = make_line(left_polynomial, image)
+        track_lines.append(left_line)
+   
+
+    if len(right_lines) > 0:
+        right_polynomial = np.average(right_lines, axis=0)
+        right_line = make_line(right_polynomial, image)
+        track_lines.append(right_line)
+    # print(left_polynomial)
 
     # print(left_polynomial, right_polynomial)
 
@@ -162,24 +172,36 @@ def make_line(line, image):
     y2 = int(height / 2)
     x1 = int((y1-intercept) / gradient)
     x2 = int((y2-intercept) / gradient)
-
+    # Reminder: Unnecessary to include y1 and y2, or use them and dont inlcude them in steering_line()
     return [(x1, y1, x2, y2)]
 
 
 def steering_line(lines, image):
     height, width = image.shape[:2]
 
-    x2_left = lines[0][0][2]
-    x2_right = lines[1][0][2]
+    if len(lines) == 1:
+        x1 = lines[0][0][0]
+        x2 = lines[0][0][2]
+        x = int((x2 - x1)/2)
 
-    x1 = int(width/2)
-    x2 = int((x2_left + x2_right) / 2)
-    y1 = height
-    y2 = int(height / 2)
+        x1 = int(width/2)
+        x2 = int(x1 + x)
+        y1 = height
+        y2 = int(height / 2)
 
-    # print(lines)
-    bottom_center = int(width/2)
-    x = x2 - bottom_center
+    else:
+        x2_left = lines[0][0][2]
+        x2_right = lines[1][0][2]
+
+        x1 = int(width/2)
+        x2 = int((x2_left + x2_right) / 2)
+        y1 = height
+        y2 = int(height / 2)
+
+        # print(lines)
+        bottom_center = int(width/2)
+        x = x2 - bottom_center
+
     y = int(height / 2)
     # print(x, y)
     if x != 0:
@@ -234,27 +256,45 @@ def test_image():
 
 
 def live_video(track_driver):
-    camera = PiCamera()
-    camera.resolution = (640, 480)
-    camera.framerate = 32
-    camera.rotation = 180
-    rawCapture = PiRGBArray(camera, size=(640, 480))
+    # camera = PiCamera()
+    # camera.resolution = (640, 480)
+    # camera.framerate = 32
+    # camera.rotation = 180
+    # rawCapture = PiRGBArray(camera, size=(640, 480))
 
     time.sleep(0.5)
+    pre_defined_kwargs = {'vflip': True, 'hflip': True}
+    stream = PiVideoStream(resolution=((640, 480)), **
+                           pre_defined_kwargs).start()
 
-    for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+    time.sleep(2)
+    fps = 0
+    then = time.time()
+    while True:
+        frame = stream.read()
 
-        image = frame.array
-        image, output = track_driver.drive_track(image)
+        fps += 1
+        if (time.time() - then) >= 1:
+            print(fps)
+            fps = 0
+            then = time.time()
+
+        image = frame
+
+        # image, output, angle = track_driver.drive_track(image)
+
+        # self.fw.turn(angle)
 
         cv2.imshow("image", image)
-        cv2.imshow("output", output)
+        # cv2.imshow("output", output)
 
         key = cv2.waitKey(1) & 0xFF
 
-        rawCapture.truncate(0)
+        # rawCapture.truncate(0)
 
         if key == ord("q"):
+            stream.stop()
+            cv2.destroyAllWindows()
             break
 
 

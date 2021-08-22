@@ -4,8 +4,7 @@ import cv2
 import picar
 
 from track_detection import Track_Detection
-from picamera import PiCamera
-from picamera.array import PiRGBArray
+from imutils.video.pivideostream import PiVideoStream
 
 
 class Autonomous_Car():
@@ -33,35 +32,44 @@ class Autonomous_Car():
         self.bw.forward()
 
     def drive(self):
-        camera = PiCamera()
-        camera.resolution = (320, 240)
-        camera.framerate = 32
-        camera.rotation = 180
-        rawCapture = PiRGBArray(camera, size=(320, 240))
+        # camera = PiCamera()
+        # camera.resolution = (320, 240)
+        # camera.framerate = 32
+        # camera.rotation = 180
+        # rawCapture = PiRGBArray(camera, size=(320, 240))
+
+        pre_defined_kwargs = {'vflip': True, 'hflip': True}
+        stream = PiVideoStream(**pre_defined_kwargs).start()
 
         time.sleep(0.5)
-        new = False
+
         fps = 0
         then = time.time()
-        for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+        while True:
+            frame = stream.read()
+
             fps += 1
             if (time.time() - then) >= 1:
                 print(fps)
                 fps = 0
                 then = time.time()
 
-            image = frame.array
-            _, _, angle = self.track_driver.drive_track(image)
+            image = frame
+
+            image, output, angle = self.track_driver.drive_track(image)
+
             self.fw.turn(angle)
 
-            # cv2.imshow("image", image)
-            # cv2.imshow("output", output)
+            cv2.imshow("image", image)
+            cv2.imshow("output", output)
 
             key = cv2.waitKey(1) & 0xFF
 
-            rawCapture.truncate(0)
+            # rawCapture.truncate(0)
 
             if key == ord("q"):
+                stream.stop()
+                cv2.destroyAllWindows()
                 break
 
     def destroy(self):
@@ -78,8 +86,7 @@ if __name__ == "__main__":
                 # straight_run()
         except Exception as e:
             print(e)
-            print('error try again in 5')
+            print('error')
             car.destroy()
-            time.sleep(5)
     except KeyboardInterrupt:
         car.destroy()
