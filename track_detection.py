@@ -5,7 +5,6 @@ import numpy as np
 from imutils.video.pivideostream import PiVideoStream
 
 
-
 class Track_Detection():
     def __init__(self):
         self.current_angle = 90
@@ -31,23 +30,26 @@ def detect_track(image, current_angle):
     output = cv2.bitwise_and(image, image, mask=edges)
     # output = get_contours(mask, output)
     image, lines = get_lines(image, edges)
-    track_lines = combined_lines(lines, image)
+    if lines is not None:
+        track_lines = combined_lines(lines, image)
 
-    if len(track_lines) > 0:
-        image = show_track_lines(track_lines, image)
+        if len(track_lines) > 0:
+            image = show_track_lines(track_lines, image)
 
-    main_line, next_angle = steering_line(track_lines, image)
-    image = show_track_lines([[main_line]], image)
-    # print(current_angle, next_angle)
-    next_angle = clean_angle(current_angle, next_angle)
-    # print(next_angle, "\n")
-    return image, output, next_angle
+        main_line, next_angle = steering_line(track_lines, image)
+        image = show_track_lines([[main_line]], image)
+        # print(current_angle, next_angle)
+        next_angle = clean_angle(current_angle, next_angle)
+        # print(next_angle, "\n")
+        return image, output, next_angle
+    else:
+        return image, output, 90
 
 
 def get_edges(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-    lower_bound = np.array([90, 98, 112])
+    lower_bound = np.array([90, 98, 75])
     upper_bound = np.array([110, 255, 255])
 
     mask = cv2.inRange(hsv, lower_bound, upper_bound)
@@ -112,11 +114,11 @@ def get_lines(image, edges):
     lines = cv2.HoughLinesP(edges, 1, np.pi/180, 10, np.array([]),
                             minLineLength=10, maxLineGap=5)
     # print(lines[0])
-
-    for line in lines:
-        x1, y1, x2, y2 = line[0]
-        # print(x1, y1, x2, y2)
-        cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            # print(x1, y1, x2, y2)
+            cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
     return image, lines
 
@@ -140,10 +142,10 @@ def combined_lines(lines, image):
                 # print(intercept, gradient)
 
                 if gradient < 0:
-                    if x1 < (width / 2) and x2 < (width / 2):
+                    if x1 < ((width/4) * 2) and x2 < ((width/4) * 3):
                         left_lines.append((intercept, gradient))
                 else:
-                    if x1 > (width / 2) and x2 > (width / 2):
+                    if x1 > (width / 4) and x2 > (width / 4):
                         right_lines.append((intercept, gradient))
 
     track_lines = []
@@ -152,7 +154,6 @@ def combined_lines(lines, image):
         left_polynomial = np.average(left_lines, axis=0)
         left_line = make_line(left_polynomial, image)
         track_lines.append(left_line)
-   
 
     if len(right_lines) > 0:
         right_polynomial = np.average(right_lines, axis=0)
@@ -247,7 +248,7 @@ def test_image():
     image = cv2.imread('./image3.jpg')
 
     track_driver = Track_Detection()
-    image, output = track_driver.drive_track(image)
+    image, output, angle = track_driver.drive_track(image)
     cv2.imshow("image", image)
     cv2.imshow("output", output)
 
@@ -281,12 +282,10 @@ def live_video(track_driver):
 
         image = frame
 
-        # image, output, angle = track_driver.drive_track(image)
-
-        # self.fw.turn(angle)
+        image, output, _ = track_driver.drive_track(image)
 
         cv2.imshow("image", image)
-        # cv2.imshow("output", output)
+        cv2.imshow("output", output)
 
         key = cv2.waitKey(1) & 0xFF
 

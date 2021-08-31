@@ -20,16 +20,13 @@ class Autonomous_Car():
         self.bw.ready()
 
         self.fw.turn(90)
-        self.bw.speed = 30
+        self.bw.speed = 35
 
         self.fw.turning_max = 45
 
-        self.bw.forward()
-
-    def straight(self):
-        self.bw.speed = 20
-        self.fw.turn(90)
-        self.bw.forward()
+    # def drive_async(self, angle):
+    #     time.sleep(0.5255157470703125)
+    #     self.fw.turn(angle)
 
     def drive(self):
         # camera = PiCamera()
@@ -39,38 +36,53 @@ class Autonomous_Car():
         # rawCapture = PiRGBArray(camera, size=(320, 240))
 
         pre_defined_kwargs = {'vflip': True, 'hflip': True}
-        stream = PiVideoStream(**pre_defined_kwargs).start()
+        stream = PiVideoStream(framerate=32, **pre_defined_kwargs).start()
 
         time.sleep(0.5)
 
+        self.bw.forward()
+
         fps = 0
         then = time.time()
+        proc = []
+        previous = time.time()
         while True:
-            frame = stream.read()
+            if time.time() - previous >= 0:
+                image = stream.read()
 
-            fps += 1
-            if (time.time() - then) >= 1:
-                print(fps)
-                fps = 0
-                then = time.time()
+                fps += 1
+                if (time.time() - then) >= 1:
+                    print(fps)
+                    fps = 0
+                    then = time.time()
 
-            image = frame
+                image, output, angle = self.track_driver.drive_track(image)
+                #start = time.time()
+                #p = Process(target=self.drive_async, args=(angle,))
+                # p.start()
+                # proc.append(p)
+                self.fw.turn(angle)
+                #print(time.time() - start)
+                # 0.5255157470703125
 
-            image, output, angle = self.track_driver.drive_track(image)
+                #image = cv2.resize(image, (640, 480))
+                #output = cv2.resize(output, (640, 480))
 
-            self.fw.turn(angle)
+                #cv2.imshow("image", image)
+                #cv2.imshow("output", output)
 
-            cv2.imshow("image", image)
-            cv2.imshow("output", output)
+                previous = time.time()
 
-            key = cv2.waitKey(1) & 0xFF
+                key = cv2.waitKey(1) & 0xFF
 
-            # rawCapture.truncate(0)
+                # rawCapture.truncate(0)
 
-            if key == ord("q"):
-                stream.stop()
-                cv2.destroyAllWindows()
-                break
+                if key == ord("q"):
+                    for p in proc:
+                        p.join()
+                    stream.stop()
+                    cv2.destroyAllWindows()
+                    raise KeyboardInterrupt
 
     def destroy(self):
         self.bw.stop()
@@ -83,7 +95,6 @@ if __name__ == "__main__":
         try:
             while True:
                 car.drive()
-                # straight_run()
         except Exception as e:
             print(e)
             print('error')
