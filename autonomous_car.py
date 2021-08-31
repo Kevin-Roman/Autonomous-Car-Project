@@ -2,9 +2,15 @@ import time
 
 import cv2
 import picar
+from imutils.video.pivideostream import PiVideoStream
 
 from track_detection import Track_Detection
-from imutils.video.pivideostream import PiVideoStream
+
+
+_DISPLAY_VIDEO = True
+_DISPLAY_FPS = True
+_RESOLUTION = (320, 240)
+_FRAMERATE = 32
 
 
 class Autonomous_Car():
@@ -24,19 +30,11 @@ class Autonomous_Car():
 
         self.fw.turning_max = 45
 
-    # def drive_async(self, angle):
-    #     time.sleep(0.5255157470703125)
-    #     self.fw.turn(angle)
-
     def drive(self):
-        # camera = PiCamera()
-        # camera.resolution = (320, 240)
-        # camera.framerate = 32
-        # camera.rotation = 180
-        # rawCapture = PiRGBArray(camera, size=(320, 240))
 
         pre_defined_kwargs = {'vflip': True, 'hflip': True}
-        stream = PiVideoStream(framerate=32, **pre_defined_kwargs).start()
+        stream = PiVideoStream(resolution=(
+            _RESOLUTION), framerate=_FRAMERATE,  **pre_defined_kwargs).start()
 
         time.sleep(0.5)
 
@@ -44,45 +42,33 @@ class Autonomous_Car():
 
         fps = 0
         then = time.time()
-        proc = []
-        previous = time.time()
         while True:
-            if time.time() - previous >= 0:
-                image = stream.read()
+            image = stream.read()
 
-                fps += 1
-                if (time.time() - then) >= 1:
-                    print(fps)
-                    fps = 0
-                    then = time.time()
+            fps += 1
+            if _DISPLAY_FPS and (time.time() - then) >= 1:
+                print(fps)
+                fps = 0
+                then = time.time()
 
-                image, output, angle = self.track_driver.drive_track(image)
-                #start = time.time()
-                #p = Process(target=self.drive_async, args=(angle,))
-                # p.start()
-                # proc.append(p)
-                self.fw.turn(angle)
-                #print(time.time() - start)
-                # 0.5255157470703125
+            image, output, angle = self.track_driver.drive_track(image)
 
-                #image = cv2.resize(image, (640, 480))
-                #output = cv2.resize(output, (640, 480))
+            self.fw.turn(angle)
 
-                #cv2.imshow("image", image)
-                #cv2.imshow("output", output)
+            if _DISPLAY_VIDEO:
 
-                previous = time.time()
+                image = cv2.resize(image, (640, 480))
+                output = cv2.resize(output, (640, 480))
 
-                key = cv2.waitKey(1) & 0xFF
+                cv2.imshow("image", image)
+                cv2.imshow("output", output)
 
-                # rawCapture.truncate(0)
+            key = cv2.waitKey(1) & 0xFF
 
-                if key == ord("q"):
-                    for p in proc:
-                        p.join()
-                    stream.stop()
-                    cv2.destroyAllWindows()
-                    raise KeyboardInterrupt
+            if key == ord("q"):
+                stream.stop()
+                cv2.destroyAllWindows()
+                raise KeyboardInterrupt
 
     def destroy(self):
         self.bw.stop()
