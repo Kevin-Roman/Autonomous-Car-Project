@@ -185,7 +185,7 @@ def steering_line(lines, image):
         x2 = lines[0][0][2]
         x = int((x2 - x1)/2)
 
-        x1 = int(width/2)
+        x1 = int(width / 2)
         x2 = int(x1 + x)
         y1 = height
         y2 = int(height / 2)
@@ -245,10 +245,10 @@ def show_track_lines(lines, image):
 
 
 def test_image():
-    image = cv2.imread('./image3.jpg')
+    image = cv2.imread('./other/image4.jpg')
 
     track_driver = Track_Detection()
-    image, output, angle = track_driver.drive_track(image)
+    image, output, _ = track_driver.drive_track(image)
     cv2.imshow("image", image)
     cv2.imshow("output", output)
 
@@ -263,7 +263,7 @@ def live_video(track_driver):
     # camera.rotation = 180
     # rawCapture = PiRGBArray(camera, size=(640, 480))
 
-    time.sleep(0.5)
+    time.sleep(1)
     pre_defined_kwargs = {'vflip': True, 'hflip': True}
     stream = PiVideoStream(resolution=((640, 480)), **
                            pre_defined_kwargs).start()
