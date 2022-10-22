@@ -69,7 +69,8 @@
 ### Built With
 
 * [![Python][Python]][Python-url]
-* [![Tensorflow][Tensorflow]][Tensorflow-url]
+* [![OpenCV][OpenCV]][OpenCV-url]
+* [![Keras][Keras]][Keras-url]
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -125,5 +126,7 @@ This project idea and the code is hugely inspired and based off David Tian's art
 [product-screenshot]: screenshots/robot-car.jpg
 [Python]: https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white
 [Python-url]: https://www.python.org/
-[Tensorflow]: https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white
-[Tensorflow-url]: https://keras.io/
+[OpenCV]: https://img.shields.io/badge/opencv-%23white.svg?style=for-the-badge&logo=opencv&logoColor=white
+[OpenCV-url]: https://opencv.org/
+[Keras]: https://img.shields.io/badge/Keras-%23D00000.svg?style=for-the-badge&logo=Keras&logoColor=white
+[Keras-url]: https://keras.io/
