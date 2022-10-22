@@ -94,7 +94,7 @@ Instructions on setting up the project
 1. Setup Raspbian on the raspberry pi
 2. Setup remote desktop on the raspberry pi so that you can remotely use it from your laptop or PC
 3. Setup the camera on the raspberry pi, following the hardware's instructions
-4. Pull this repo
+4. Clone this repo
 5. Install the libraries in requirements.txt
 6. Modify the main .py file to be compatible with your camera
 7. Run the code
